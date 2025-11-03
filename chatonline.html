@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compy 3.0 — Virtual Assistant</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="chat-container">
+
+    <!-- Header -->
+    <header class="chat-header">
+      <div class="chat-header-info">
+        <div class="assistant-avatar">C3</div>
+        <div>
+          <h1 class="chat-title">Compy 3.0</h1>
+          <p class="chat-subtitle">Virtual Assistant</p>
+        </div>
+      </div>
+      <button class="new-chat-btn" id="new-chat" title="Nuova conversazione">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+
+    <!-- Chat messages -->
+    <main id="chat" class="chat-messages"></main>
+
+    <!-- Input -->
+    <footer class="chat-input-container">
+      <div class="chat-input-wrapper">
+        <textarea id="input" class="chat-input" placeholder="Scrivi un messaggio..." rows="1"></textarea>
+        <button id="send" class="send-button" aria-label="Invia">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </footer>
+
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Reset session manually
+    document.getElementById('new-chat').addEventListener('click', () => {
+      localStorage.removeItem('session_id');
+      location.reload();
+    });
+  </script>
+</body>
+</html>
