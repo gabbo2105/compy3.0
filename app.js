@@ -31,7 +31,7 @@ function linkify(text) {
       `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`
   );
 
-  // 2. Gestione URL seguiti da una descrizione (es: URL Descrizione Documento)
+  // 2. Gestione URL seguiti da una descrizione (es: URL Descrizione Documento) ciao
   text = text.replace(
     /(https?:\/\/[^\s]+)\s+([A-ZÀ-üni0-9][^.,;!?]+)/g,
     (match, url, label) =>
