@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Compy 3.0 — Virtual Assistant</title>
   <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
   <div class="chat-container">
+
+    <!-- Header -->
     <header class="chat-header">
       <div class="chat-header-info">
         <div class="assistant-avatar">C3</div>
@@ -22,8 +23,10 @@
       </button>
     </header>
 
+    <!-- Chat messages -->
     <main id="chat" class="chat-messages"></main>
 
+    <!-- Input -->
     <footer class="chat-input-container">
       <div class="chat-input-wrapper">
         <textarea id="input" class="chat-input" placeholder="Scrivi un messaggio..." rows="1"></textarea>
@@ -35,10 +38,12 @@
         </button>
       </div>
     </footer>
+
   </div>
 
   <script src="app.js"></script>
   <script>
+    // Reset session manually
     document.getElementById('new-chat').addEventListener('click', () => {
       localStorage.removeItem('session_id');
       location.reload();
