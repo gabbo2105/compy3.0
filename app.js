@@ -105,7 +105,10 @@ async function sendMessage() {
       const json = JSON.parse(bufferNDJSON);
       if (json.type === "item" && json.content) {
         fullText += json.content;
-        assistantMsg.innerHTML = "Assistente: " + linkify(fullText);
+        let html = marked.parse(fullText);   // markdown → HTML
+        html = linkify(html);                // aggiunge link a URL nudi
+        assistantMsg.innerHTML = "Assistente: " + html;
+
       }
     } catch {}
   }
