@@ -1,54 +1,116 @@
+// ✅ Session ID persistente
+function getSessionId() {
+  let id = localStorage.getItem("session_id");
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("session_id", id);
+  }
+  return id;
+}
+
+const sessionId = getSessionId();
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
-const send = document.getElementById("send");
+const sendBtn = document.getElementById("send");
 
-function autoScroll() {
-  chat.scrollTop = chat.scrollHeight;
+// ✅ Escape per sicurezza (solo per visualizzazione)
+function escapeHtml(text) {
+  return text.replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[m]));
 }
 
-function addMessage(text, sender) {
-  const msg = document.createElement("div");
-  msg.className = `message ${sender}`;
-  msg.textContent = text;
-  chat.appendChild(msg);
-  autoScroll();
-  return msg;
+// ✅ Trasforma solo i link in <a>, senza toccare il resto
+function linkify(text) {
+  if (!text) return text;
+
+  // 1. Gestione Markdown [descrizione](url)
+  text = text.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    (match, label, url) =>
+      `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`
+  );
+
+  // 2. Gestione URL seguiti da una descrizione (es: URL Descrizione Documento)
+  text = text.replace(
+    /(https?:\/\/[^\s]+)\s+([A-ZÀ-üni0-9][^.,;!?]+)/g,
+    (match, url, label) =>
+      `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label.trim())}</a>`
+  );
+
+  return text;
 }
 
+
+// ✅ Invio messaggio + streaming risposta
 async function sendMessage() {
-  const text = input.value.trim();
-  if (!text) return;
+  const message = input.value.trim();
+  if (!message) return;
 
-  addMessage(text, "user");
+  chat.innerHTML += `<div class="message user">Tu: ${escapeHtml(message)}</div>`;
+  chat.scrollTop = chat.scrollHeight;
   input.value = "";
 
-  const aiMsg = addMessage("", "assistant");
-
-  const response = await fetch("/api/stream", {
+  // 📡 Chiamata al tuo webhook n8n
+  const response = await fetch("https://gabbo.app.n8n.cloud/webhook/orchestratore-chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: text })
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ sessionId, message })
   });
 
+  // 🧠 Streaming reader
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  let partial = "";
 
+  let bufferNDJSON = "";       // buffer delle righe NDJSON
+  let fullText = "";           // testo completo generato dall'assistente
+
+  const assistantMsg = document.createElement("div");
+  assistantMsg.className = "message assistant";
+  assistantMsg.innerHTML = "Assistente: ";
+  chat.appendChild(assistantMsg);
+
+  // 🔁 Loop streaming
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
 
-    partial += decoder.decode(value, { stream: true });
-    aiMsg.textContent = partial;
-    autoScroll();
+    bufferNDJSON += decoder.decode(value, { stream: true });
+
+    // separa righe
+    const lines = bufferNDJSON.split("\n");
+    bufferNDJSON = lines.pop(); // salva l'ultima incompleta
+
+    for (let line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const json = JSON.parse(line);
+
+        if (json.type === "item" && json.content) {
+          fullText += json.content;
+          assistantMsg.innerHTML = "Assistente: " + linkify(fullText);
+          chat.scrollTop = chat.scrollHeight;
+        }
+      } catch {
+        // chunk non JSON — ignoro
+      }
+    }
+  }
+
+  // Elabora l'ultimo chunk se contiene testo
+  if (bufferNDJSON.trim()) {
+    try {
+      const json = JSON.parse(bufferNDJSON);
+      if (json.type === "item" && json.content) {
+        fullText += json.content;
+        assistantMsg.innerHTML = "Assistente: " + linkify(fullText);
+      }
+    } catch {}
   }
 }
 
-send.addEventListener("click", sendMessage);
-
-input.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-});
+// ⚡ Event listeners
+sendBtn.addEventListener("click", sendMessage);
+input.addEventListener("keypress", e => e.key === "Enter" && sendMessage());

@@ -12,19 +12,18 @@
     <!-- Header -->
     <header class="chat-header">
       <div class="chat-header-info">
-        <img src="robot-avatar.png" alt="Compy Avatar" class="assistant-avatar-img" />
+        <div class="assistant-avatar">C3</div>
         <div>
           <h1 class="chat-title">Compy 3.0</h1>
           <p class="chat-subtitle">Virtual Assistant</p>
         </div>
       </div>
       <button class="new-chat-btn" id="new-chat" title="Nuova conversazione">
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
     </header>
 
+    <!-- Chat messages -->
     <main id="chat" class="chat-messages"></main>
 
     <!-- Input -->
@@ -43,5 +42,12 @@
   </div>
 
   <script src="app.js"></script>
+  <script>
+    // Reset session manually
+    document.getElementById('new-chat').addEventListener('click', () => {
+      localStorage.removeItem('session_id');
+      location.reload();
+    });
+  </script>
 </body>
 </html>
