@@ -13,143 +13,107 @@ const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
 
-
-// -------------------------------------------------------
-// 🔐 FUNZIONI DI UTILITÀ
-// -------------------------------------------------------
-
-// Escape per sicurezza minima
+// ✅ Escape per sicurezza (solo per visualizzazione)
 function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[m]));
 }
 
-// 🔗 Trasforma URL e Markdown links in <a>, SENZA toccare l’HTML già generato da Marked
+// ✅ Trasforma solo i link in <a>, senza toccare il resto
 function linkify(text) {
   if (!text) return text;
 
-  // 1. Gestione Markdown [label](url)
+  // 1. Gestione Markdown [descrizione](url)
   text = text.replace(
     /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
     (match, label, url) =>
       `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`
   );
 
-  // 2. URL nudi seguiti da testo tipo "URL Documento X"
+  // 2. Gestione URL seguiti da una descrizione (es: URL Descrizione Documento)
   text = text.replace(
-    /(https?:\/\/[^\s]+)\s+([A-Za-zÀ-ÖØ-öø-ÿ0-9]+)/g,
+    /(https?:\/\/[^\s]+)\s+([A-ZÀ-üni0-9][^.,;!?]+)/g,
     (match, url, label) =>
-      `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`
+      `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label.trim())}</a>`
   );
 
   return text;
 }
 
-// Abilita newline per Marked (importantissimo!)
-if (typeof marked !== "undefined") {
-  marked.setOptions({
-    breaks: true
-  });
-}
 
-
-// -------------------------------------------------------
-// 🚀 INVIO MESSAGGIO + STREAMING RISPOSTA
-// -------------------------------------------------------
-
+// ✅ Invio messaggio + streaming risposta
 async function sendMessage() {
   const message = input.value.trim();
   if (!message) return;
 
-  // Mostra messaggio utente
   chat.innerHTML += `<div class="message user">Tu: ${escapeHtml(message)}</div>`;
   chat.scrollTop = chat.scrollHeight;
   input.value = "";
 
-  // 📡 Chiamata al webhook n8n
+  // 📡 Chiamata al tuo webhook n8n
   const response = await fetch("https://gabbo.app.n8n.cloud/webhook/orchestratore-chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify({ sessionId, message })
   });
 
-  // STREAMING
+  // 🧠 Streaming reader
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
 
-  let bufferNDJSON = "";
-  let fullText = "";
+  let bufferNDJSON = "";       // buffer delle righe NDJSON
+  let fullText = "";           // testo completo generato dall'assistente
 
-  // Messaggio dell’assistente
   const assistantMsg = document.createElement("div");
   assistantMsg.className = "message assistant";
-  assistantMsg.innerHTML = "<strong>Assistente:</strong><br>";
+  assistantMsg.innerHTML = "Assistente: ";
   chat.appendChild(assistantMsg);
 
+  // 🔁 Loop streaming
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
 
     bufferNDJSON += decoder.decode(value, { stream: true });
 
+    // separa righe
     const lines = bufferNDJSON.split("\n");
-    bufferNDJSON = lines.pop();
+    bufferNDJSON = lines.pop(); // salva l'ultima incompleta
 
     for (let line of lines) {
       if (!line.trim()) continue;
-
       try {
         const json = JSON.parse(line);
 
         if (json.type === "item" && json.content) {
-
-          // 🔥 EVITA DI DISTRUGGERE LA SINTASSI MARKDOWN
-          fullText += json.content + " ";
-
-          // 🔥 RENDER LIVE: markdown → HTML
-          let html = marked.parse(fullText);
-
-          // 🔥 Aggiungi link dopo il markdown (senza romperlo)
-          html = linkify(html);
-
-          assistantMsg.innerHTML = "<strong>Assistente:</strong><br>" + html;
-
+          fullText += json.content;
+          assistantMsg.innerHTML = "Assistente: " + linkify(fullText);
           chat.scrollTop = chat.scrollHeight;
         }
       } catch {
-        // linea non interpretabile → ignoro
+        // chunk non JSON — ignoro
       }
     }
   }
 
-  // Ultimo chunk
+  // Elabora l'ultimo chunk se contiene testo
   if (bufferNDJSON.trim()) {
     try {
       const json = JSON.parse(bufferNDJSON);
       if (json.type === "item" && json.content) {
+        fullText += json.content;
+        let html = marked.parse(fullText);   // markdown → HTML
+        html = linkify(html);                // aggiunge link a URL nudi
+        assistantMsg.innerHTML = "Assistente: " + html;
 
-        fullText += json.content + " ";
-
-        let html = marked.parse(fullText);
-        html = linkify(html);
-
-        assistantMsg.innerHTML = "<strong>Assistente:</strong><br>" + html;
       }
     } catch {}
   }
 }
 
-
-// -------------------------------------------------------
-// 🎮 EVENT LISTENERS
-// -------------------------------------------------------
-
+// ⚡ Event listeners
 sendBtn.addEventListener("click", sendMessage);
-
-input.addEventListener("keypress", e => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    sendMessage();
-  }
-});
+input.addEventListener("keypress", e => e.key === "Enter" && sendMessage());
