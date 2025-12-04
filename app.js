@@ -52,7 +52,7 @@ async function sendMessage() {
   input.value = "";
 
   // 📡 Chiamata al tuo webhook n8n
-  const response = await fetch("https://gabbo.app.n8n.cloud/webhook/orchestratore-chat", {
+  const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/compy", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
