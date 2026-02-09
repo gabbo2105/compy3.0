@@ -1,14 +1,3 @@
-// Session ID persistente
-function getSessionId() {
-  let id = localStorage.getItem("session_id");
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem("session_id", id);
-  }
-  return id;
-}
-
-const sessionId = getSessionId();
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
@@ -149,7 +138,7 @@ async function sendMessage() {
     const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/d025b111-f4ca-4265-9cf6-6831b48833d0", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, message })
+      body: JSON.stringify({ message })
     });
 
     if (!response.ok) {
@@ -236,9 +225,8 @@ input.addEventListener("keydown", e => {
 // Auto-resize textarea
 input.addEventListener("input", autoResize);
 
-// Reset session
+// Nuova chat
 document.getElementById("new-chat").addEventListener("click", () => {
-  localStorage.removeItem("session_id");
   location.reload();
 });
 
