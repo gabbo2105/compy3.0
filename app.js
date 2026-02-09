@@ -57,11 +57,9 @@ function showWelcome() {
   welcome.className = "welcome-screen";
   welcome.id = "welcome";
   welcome.innerHTML = `
-    <div class="welcome-avatar">
-      <img src="bg,f8f8f8-flat,750x,075,f-pad,750x1000,f8f8f8.jpg" alt="Compy">
-    </div>
+    <img src="LOGO COMPY.png" alt="Compy" class="welcome-logo" />
     <h2 class="welcome-title">Ciao! Sono Compy</h2>
-    <p class="welcome-subtitle">Il tuo assistente virtuale. Come posso aiutarti oggi?</p>
+    <p class="welcome-subtitle">Il tuo assistente virtuale. Come posso aiutarti?</p>
     <div class="welcome-suggestions">
       <button class="suggestion-chip">Come funzioni?</button>
       <button class="suggestion-chip">Cosa puoi fare?</button>
