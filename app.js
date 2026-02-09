@@ -148,7 +148,7 @@ async function sendMessage() {
   const typingEl = showTypingIndicator();
 
   try {
-    const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/compy", {
+    const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/d025b111-f4ca-4265-9cf6-6831b48833d0", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId, message })
