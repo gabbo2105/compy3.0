@@ -424,3 +424,145 @@ body, html {
 .chat-messages::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.18);
 }
+
+/* ── DARK MODE (automatico da sistema) ── */
+@media (prefers-color-scheme: dark) {
+  body, html {
+    background: #1a1a1a;
+  }
+
+  .chat-container {
+    background: #1e1e1e;
+  }
+
+  /* Header */
+  .chat-header {
+    background: #252525;
+    border-bottom-color: #333;
+  }
+
+  .chat-title {
+    color: #e8e8e8;
+  }
+
+  .chat-subtitle {
+    color: #888;
+  }
+
+  .new-chat-btn {
+    border-color: #444;
+    color: #aaa;
+  }
+
+  .new-chat-btn:hover {
+    background: #333;
+    border-color: #555;
+    color: #ddd;
+  }
+
+  /* Welcome */
+  .welcome-title {
+    color: #e8e8e8;
+  }
+
+  .welcome-subtitle {
+    color: #888;
+  }
+
+  .suggestion-chip {
+    background: #2a2a2a;
+    border-color: #3a3a3a;
+    color: #bbb;
+  }
+
+  .suggestion-chip:hover {
+    background: #2f2a3d;
+    border-color: #7c5fd6;
+    color: #b8a4f0;
+  }
+
+  /* Messaggi assistente */
+  .message.assistant {
+    background: #252525;
+    color: #e0e0e0;
+    border-color: #333;
+    box-shadow: none;
+  }
+
+  .message a {
+    color: #a88ff0;
+  }
+
+  .message.assistant code {
+    background: #2e2b38;
+  }
+
+  .message.assistant pre {
+    background: #2a2a2e;
+  }
+
+  /* Messaggi utente */
+  .message.user {
+    background: #5a3daa;
+  }
+
+  .message.user a {
+    color: #d4c6ff;
+  }
+
+  /* Typing indicator */
+  .typing-indicator {
+    background: #252525;
+    border-color: #333;
+  }
+
+  .typing-dot {
+    background: #666;
+  }
+
+  /* Errore */
+  .message.error {
+    background: #2d1f1f;
+    color: #f87171;
+    border-color: #5c2828;
+  }
+
+  /* Input */
+  .chat-input-container {
+    background: #252525;
+    border-top-color: #333;
+  }
+
+  .chat-input-wrapper {
+    background: #1e1e1e;
+  }
+
+  .chat-input-wrapper:focus-within {
+    border-color: #5a3daa;
+  }
+
+  .chat-input {
+    color: #e0e0e0;
+  }
+
+  .chat-input::placeholder {
+    color: #666;
+  }
+
+  .send-button {
+    background: #5a3daa;
+  }
+
+  .send-button:hover {
+    background: #6d4fc4;
+  }
+
+  /* Scrollbar */
+  .chat-messages::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .chat-messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+}
