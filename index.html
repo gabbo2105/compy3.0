@@ -13,9 +13,7 @@
     <!-- Header -->
     <header class="chat-header">
       <div class="chat-header-info">
-        <div class="assistant-avatar">
-            <img src="bg,f8f8f8-flat,750x,075,f-pad,750x1000,f8f8f8.jpg" alt="Logo Assistente">
-        </div>
+        <img src="LOGO COMPY.png" alt="Compy" class="header-logo" />
         <div>
           <h1 class="chat-title">Compy 3.0</h1>
           <p class="chat-subtitle">Virtual Assistant</p>
@@ -34,7 +32,7 @@
       <div class="chat-input-wrapper">
         <textarea id="input" class="chat-input" placeholder="Scrivi un messaggio..." rows="1"></textarea>
         <button id="send" class="send-button" aria-label="Invia">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="22" y1="2" x2="11" y2="13"></line>
             <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
           </svg>
@@ -45,12 +43,5 @@
   </div>
 
   <script src="app.js"></script>
-  <script>
-    // Reset session manually
-    document.getElementById('new-chat').addEventListener('click', () => {
-      localStorage.removeItem('session_id');
-      location.reload();
-    });
-  </script>
 </body>
 </html>
