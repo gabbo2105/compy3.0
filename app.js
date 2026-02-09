@@ -1,4 +1,4 @@
-// ✅ Session ID persistente
+// Session ID persistente
 function getSessionId() {
   let id = localStorage.getItem("session_id");
   if (!id) {
@@ -13,25 +13,27 @@ const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
 
-// ✅ Escape per sicurezza (solo per visualizzazione)
+let isSending = false;
+
+// Escape per sicurezza
 function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[m]));
 }
 
-// ✅ Trasforma solo i link in <a>, senza toccare il resto
+// Trasforma link in <a>
 function linkify(text) {
   if (!text) return text;
 
-  // 1. Gestione Markdown [descrizione](url)
+  // 1. Markdown [descrizione](url)
   text = text.replace(
     /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
     (match, label, url) =>
       `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`
   );
 
-  // 2. Gestione URL seguiti da una descrizione (es: URL Descrizione Documento) ciao
+  // 2. URL seguiti da una descrizione
   text = text.replace(
     /(https?:\/\/[^\s]+)\s+([A-ZÀ-üni0-9][^.,;!?]+)/g,
     (match, url, label) =>
@@ -41,79 +43,207 @@ function linkify(text) {
   return text;
 }
 
+// Scroll fluido verso il basso
+function scrollToBottom() {
+  chat.scrollTo({
+    top: chat.scrollHeight,
+    behavior: "smooth"
+  });
+}
 
-// ✅ Invio messaggio + streaming risposta
+// Mostra welcome screen
+function showWelcome() {
+  const welcome = document.createElement("div");
+  welcome.className = "welcome-screen";
+  welcome.id = "welcome";
+  welcome.innerHTML = `
+    <div class="welcome-avatar">
+      <img src="bg,f8f8f8-flat,750x,075,f-pad,750x1000,f8f8f8.jpg" alt="Compy">
+    </div>
+    <h2 class="welcome-title">Ciao! Sono Compy</h2>
+    <p class="welcome-subtitle">Il tuo assistente virtuale. Come posso aiutarti oggi?</p>
+    <div class="welcome-suggestions">
+      <button class="suggestion-chip">Come funzioni?</button>
+      <button class="suggestion-chip">Cosa puoi fare?</button>
+      <button class="suggestion-chip">Aiutami con un problema</button>
+    </div>
+  `;
+  chat.appendChild(welcome);
+
+  // Click su suggestion chip
+  welcome.querySelectorAll(".suggestion-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      input.value = chip.textContent;
+      sendMessage();
+    });
+  });
+}
+
+// Rimuovi welcome screen
+function removeWelcome() {
+  const welcome = document.getElementById("welcome");
+  if (welcome) welcome.remove();
+}
+
+// Mostra typing indicator
+function showTypingIndicator() {
+  const indicator = document.createElement("div");
+  indicator.className = "typing-indicator";
+  indicator.id = "typing-indicator";
+  indicator.innerHTML = `
+    <span class="typing-dot"></span>
+    <span class="typing-dot"></span>
+    <span class="typing-dot"></span>
+  `;
+  chat.appendChild(indicator);
+  scrollToBottom();
+  return indicator;
+}
+
+// Rimuovi typing indicator
+function removeTypingIndicator() {
+  const indicator = document.getElementById("typing-indicator");
+  if (indicator) indicator.remove();
+}
+
+// Crea messaggio nel DOM (evita innerHTML +=)
+function addMessage(className, content) {
+  const msg = document.createElement("div");
+  msg.className = `message ${className}`;
+  if (className === "user") {
+    msg.textContent = content;
+  } else {
+    msg.innerHTML = content;
+  }
+  chat.appendChild(msg);
+  scrollToBottom();
+  return msg;
+}
+
+// Auto-resize textarea
+function autoResize() {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 130) + "px";
+}
+
+// Invio messaggio + streaming risposta
 async function sendMessage() {
   const message = input.value.trim();
-  if (!message) return;
+  if (!message || isSending) return;
 
-  chat.innerHTML += `<div class="message user">Tu: ${escapeHtml(message)}</div>`;
-  chat.scrollTop = chat.scrollHeight;
+  isSending = true;
+  sendBtn.disabled = true;
+
+  // Rimuovi welcome screen
+  removeWelcome();
+
+  // Aggiungi messaggio utente
+  addMessage("user", message);
+
+  // Reset input
   input.value = "";
+  input.style.height = "auto";
 
-  // 📡 Chiamata al tuo webhook n8n
-  const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/compy", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ sessionId, message })
-  });
+  // Mostra typing indicator
+  const typingEl = showTypingIndicator();
 
-  // 🧠 Streaming reader
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
+  try {
+    const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/compy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, message })
+    });
 
-  let bufferNDJSON = "";       // buffer delle righe NDJSON
-  let fullText = "";           // testo completo generato dall'assistente
+    if (!response.ok) {
+      throw new Error(`Errore ${response.status}`);
+    }
 
-  const assistantMsg = document.createElement("div");
-  assistantMsg.className = "message assistant";
-  assistantMsg.innerHTML = "Assistente: ";
-  chat.appendChild(assistantMsg);
+    // Rimuovi typing, crea bolla assistente
+    removeTypingIndicator();
 
-  // 🔁 Loop streaming
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
 
-    bufferNDJSON += decoder.decode(value, { stream: true });
+    let bufferNDJSON = "";
+    let fullText = "";
 
-    // separa righe
-    const lines = bufferNDJSON.split("\n");
-    bufferNDJSON = lines.pop(); // salva l'ultima incompleta
+    const assistantMsg = document.createElement("div");
+    assistantMsg.className = "message assistant";
+    chat.appendChild(assistantMsg);
 
-    for (let line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const json = JSON.parse(line);
+    // Loop streaming
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
 
-        if (json.type === "item" && json.content) {
-          fullText += json.content;
-          assistantMsg.innerHTML = "Assistente: " + linkify(fullText);
-          chat.scrollTop = chat.scrollHeight;
+      bufferNDJSON += decoder.decode(value, { stream: true });
+
+      const lines = bufferNDJSON.split("\n");
+      bufferNDJSON = lines.pop();
+
+      for (let line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const json = JSON.parse(line);
+          if (json.type === "item" && json.content) {
+            fullText += json.content;
+            assistantMsg.innerHTML = linkify(fullText);
+            scrollToBottom();
+          }
+        } catch {
+          // chunk non JSON
         }
-      } catch {
-        // chunk non JSON — ignoro
       }
     }
-  }
 
-  // Elabora l'ultimo chunk se contiene testo
-  if (bufferNDJSON.trim()) {
-    try {
-      const json = JSON.parse(bufferNDJSON);
-      if (json.type === "item" && json.content) {
-        fullText += json.content;
-        let html = marked.parse(fullText);   // markdown → HTML
-        html = linkify(html);                // aggiunge link a URL nudi
-        assistantMsg.innerHTML = "Assistente: " + html;
+    // Elabora ultimo chunk
+    if (bufferNDJSON.trim()) {
+      try {
+        const json = JSON.parse(bufferNDJSON);
+        if (json.type === "item" && json.content) {
+          fullText += json.content;
+        }
+      } catch {}
+    }
 
-      }
-    } catch {}
+    // Render finale con markdown
+    if (fullText) {
+      let html = marked.parse(fullText);
+      html = linkify(html);
+      assistantMsg.innerHTML = html;
+      scrollToBottom();
+    }
+
+  } catch (error) {
+    removeTypingIndicator();
+    addMessage("error", "Non sono riuscito a rispondere. Riprova tra poco.");
+  } finally {
+    isSending = false;
+    sendBtn.disabled = false;
+    input.focus();
   }
 }
 
-// ⚡ Event listeners
+// Event listeners
 sendBtn.addEventListener("click", sendMessage);
-input.addEventListener("keypress", e => e.key === "Enter" && sendMessage());
+
+// Shift+Enter = nuova riga, Enter = invia
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// Auto-resize textarea
+input.addEventListener("input", autoResize);
+
+// Reset session
+document.getElementById("new-chat").addEventListener("click", () => {
+  localStorage.removeItem("session_id");
+  location.reload();
+});
+
+// Inizializzazione
+showWelcome();
+input.focus();
