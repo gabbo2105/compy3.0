@@ -133,12 +133,13 @@ async function sendMessage() {
 
   // Mostra typing indicator
   const typingEl = showTypingIndicator();
-
+  let threadId = "";
+  
   try {
     const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/d025b111-f4ca-4265-9cf6-6831b48833d0", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message })
+      body: JSON.stringify({ message, threadId })
     });
 
     if (!response.ok) {
