@@ -157,7 +157,9 @@ async function initChat() {
 async function sendMessage() {
   const message = input.value.trim();
   if (!message || isSending || !threadId) return;
-
+if (!chatId){
+  chatId=await initChat()
+}
   isSending = true;
   sendBtn.disabled = true;
 
@@ -273,4 +275,3 @@ document.getElementById("new-chat").addEventListener("click", () => {
 // Inizializzazione
 showWelcome();
 input.focus();
-initChat();
