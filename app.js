@@ -4,7 +4,7 @@ const sendBtn = document.getElementById("send");
 
 let isSending = false;
 let threadId = null; // Verrà impostato dal webhook
-
+let chatId = null;
 // Escape per sicurezza
 function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => ({
@@ -127,7 +127,7 @@ function showInitError() {
 }
 
 // Inizializza threadId dal webhook
-async function initThread() {
+async function initChat() {
   try {
     const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/ab1fa3f9-7c06-4fa2-9a03-1c2c4bf96e67", {
       method: "POST",
@@ -145,10 +145,10 @@ async function initThread() {
       throw new Error("chatId mancante nella risposta");
     }
 
-    threadId = data.chatId;
-    console.log("Thread inizializzato:", threadId);
+    chatId = data.chatId;
+    console.log("Chat inizializzato:", chatId);
   } catch (error) {
-    console.error("Errore inizializzazione thread:", error);
+    console.error("Errore inizializzazione chat:", error);
     showInitError();
   }
 }
@@ -178,7 +178,7 @@ async function sendMessage() {
     const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/d025b111-f4ca-4265-9cf6-6831b48833d0", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, threadId })
+      body: JSON.stringify({ message, threadId, chatId })
     });
 
     if (!response.ok) {
@@ -273,4 +273,4 @@ document.getElementById("new-chat").addEventListener("click", () => {
 // Inizializzazione
 showWelcome();
 input.focus();
-initThread();
+initChat();
