@@ -3,7 +3,6 @@ const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
 
 let isSending = false;
-let firstSend = true;
 let threadId = 'session_' + Date.now();
 
 // Escape per sicurezza
@@ -140,7 +139,7 @@ async function sendMessage() {
     const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/d025b111-f4ca-4265-9cf6-6831b48833d0", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, threadId, firstSend })
+      body: JSON.stringify({ message, threadId })
     });
 
     if (!response.ok) {
@@ -209,7 +208,6 @@ async function sendMessage() {
   } finally {
     isSending = false;
     sendBtn.disabled = false;
-    firstSend = false;
     
     input.focus();
   }
