@@ -3,7 +3,7 @@ const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
 
 let isSending = false;
-let threadId = 'session_' + Date.now();
+let threadId = null; // Verrà impostato dal webhook
 
 // Escape per sicurezza
 function escapeHtml(text) {
@@ -114,10 +114,49 @@ function autoResize() {
   input.style.height = Math.min(input.scrollHeight, 130) + "px";
 }
 
+// Mostra errore di inizializzazione e blocca la chat
+function showInitError() {
+  removeWelcome();
+  const errorDiv = document.createElement("div");
+  errorDiv.className = "message error";
+  errorDiv.innerHTML = "Impossibile avviare la chat. Ricarica la pagina per riprovare.";
+  chat.appendChild(errorDiv);
+  input.disabled = true;
+  sendBtn.disabled = true;
+  input.placeholder = "Chat non disponibile";
+}
+
+// Inizializza threadId dal webhook
+async function initThread() {
+  try {
+    const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/ab1fa3f9-7c06-4fa2-9a03-1c2c4bf96e67", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    });
+
+    if (!response.ok) {
+      throw new Error(`Errore ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.chatId) {
+      throw new Error("chatId mancante nella risposta");
+    }
+
+    threadId = data.chatId;
+    console.log("Thread inizializzato:", threadId);
+  } catch (error) {
+    console.error("Errore inizializzazione thread:", error);
+    showInitError();
+  }
+}
+
 // Invio messaggio + streaming risposta
 async function sendMessage() {
   const message = input.value.trim();
-  if (!message || isSending) return;
+  if (!message || isSending || !threadId) return;
 
   isSending = true;
   sendBtn.disabled = true;
@@ -134,7 +173,7 @@ async function sendMessage() {
 
   // Mostra typing indicator
   const typingEl = showTypingIndicator();
-  
+
   try {
     const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/d025b111-f4ca-4265-9cf6-6831b48833d0", {
       method: "POST",
@@ -208,7 +247,6 @@ async function sendMessage() {
   } finally {
     isSending = false;
     sendBtn.disabled = false;
-    
     input.focus();
   }
 }
@@ -235,3 +273,4 @@ document.getElementById("new-chat").addEventListener("click", () => {
 // Inizializzazione
 showWelcome();
 input.focus();
+initThread();
