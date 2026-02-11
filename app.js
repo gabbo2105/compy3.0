@@ -2,236 +2,121 @@ const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
 
-let isSending = false;
-let threadId = 'session_' + Date.now();
+// ✅ ChatId dalla piattaforma esterna (persistente per sessione)
+let chatId = localStorage.getItem("chat_id");
 
-// Escape per sicurezza
+async function ensureChatId() {
+  if (chatId) return chatId;
+
+  const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/ab1fa3f9-7c06-4fa2-9a03-1c2c4bf96e67", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({})
+  });
+
+  const data = await response.json();
+  chatId = data.chatId;
+  localStorage.setItem("chat_id", chatId);
+  return chatId;
+}
+
+// ✅ Escape per sicurezza
 function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[m]));
 }
 
-// Trasforma link in <a>
+// ✅ Trasforma solo i link in <a>
 function linkify(text) {
   if (!text) return text;
-
-  // 1. Markdown [descrizione](url)
   text = text.replace(
     /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
     (match, label, url) =>
       `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`
   );
-
-  // 2. URL seguiti da una descrizione
   text = text.replace(
     /(https?:\/\/[^\s]+)\s+([A-ZÀ-üni0-9][^.,;!?]+)/g,
     (match, url, label) =>
       `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label.trim())}</a>`
   );
-
   return text;
 }
 
-// Scroll fluido verso il basso
-function scrollToBottom() {
-  chat.scrollTo({
-    top: chat.scrollHeight,
-    behavior: "smooth"
-  });
-}
-
-// Mostra welcome screen
-function showWelcome() {
-  const welcome = document.createElement("div");
-  welcome.className = "welcome-screen";
-  welcome.id = "welcome";
-  welcome.innerHTML = `
-    <img src="LOGO COMPY.png" alt="Compy" class="welcome-logo" />
-    <h2 class="welcome-title">Ciao! Sono Compy</h2>
-    <p class="welcome-subtitle">Il tuo assistente virtuale. Come posso aiutarti?</p>
-    <div class="welcome-suggestions">
-      <button class="suggestion-chip">Come funzioni?</button>
-      <button class="suggestion-chip">Cosa puoi fare?</button>
-      <button class="suggestion-chip">Aiutami con un problema</button>
-    </div>
-  `;
-  chat.appendChild(welcome);
-
-  // Click su suggestion chip
-  welcome.querySelectorAll(".suggestion-chip").forEach(chip => {
-    chip.addEventListener("click", () => {
-      input.value = chip.textContent;
-      sendMessage();
-    });
-  });
-}
-
-// Rimuovi welcome screen
-function removeWelcome() {
-  const welcome = document.getElementById("welcome");
-  if (welcome) welcome.remove();
-}
-
-// Mostra typing indicator
-function showTypingIndicator() {
-  const indicator = document.createElement("div");
-  indicator.className = "typing-indicator";
-  indicator.id = "typing-indicator";
-  indicator.innerHTML = `
-    <span class="typing-dot"></span>
-    <span class="typing-dot"></span>
-    <span class="typing-dot"></span>
-  `;
-  chat.appendChild(indicator);
-  scrollToBottom();
-  return indicator;
-}
-
-// Rimuovi typing indicator
-function removeTypingIndicator() {
-  const indicator = document.getElementById("typing-indicator");
-  if (indicator) indicator.remove();
-}
-
-// Crea messaggio nel DOM (evita innerHTML +=)
-function addMessage(className, content) {
-  const msg = document.createElement("div");
-  msg.className = `message ${className}`;
-  if (className === "user") {
-    msg.textContent = content;
-  } else {
-    msg.innerHTML = content;
-  }
-  chat.appendChild(msg);
-  scrollToBottom();
-  return msg;
-}
-
-// Auto-resize textarea
-function autoResize() {
-  input.style.height = "auto";
-  input.style.height = Math.min(input.scrollHeight, 130) + "px";
-}
-
-// Invio messaggio + streaming risposta
+// ✅ Invio messaggio + streaming risposta
 async function sendMessage() {
   const message = input.value.trim();
-  if (!message || isSending) return;
+  if (!message) return;
 
-  isSending = true;
-  sendBtn.disabled = true;
-
-  // Rimuovi welcome screen
-  removeWelcome();
-
-  // Aggiungi messaggio utente
-  addMessage("user", message);
-
-  // Reset input
+  chat.innerHTML += `<div class="message user">Tu: ${escapeHtml(message)}</div>`;
+  chat.scrollTop = chat.scrollHeight;
   input.value = "";
-  input.style.height = "auto";
 
-  // Mostra typing indicator
-  const typingEl = showTypingIndicator();
-  
+  // 1️⃣ Ottieni chatId (solo la prima volta)
   try {
-    const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/d025b111-f4ca-4265-9cf6-6831b48833d0", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, threadId })
-    });
+    await ensureChatId();
+  } catch (err) {
+    chat.innerHTML += `<div class="message assistant">Errore nella creazione della chat. Riprova.</div>`;
+    return;
+  }
 
-    if (!response.ok) {
-      throw new Error(`Errore ${response.status}`);
-    }
+  // 2️⃣ Invia messaggio con chatId
+  const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/d025b111-f4ca-4265-9cf6-6831b48833d0", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chatId,
+      threadId: chatId,
+      message
+    })
+  });
 
-    // Rimuovi typing, crea bolla assistente
-    removeTypingIndicator();
+  // 🧠 Streaming reader
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
+  let bufferNDJSON = "";
+  let fullText = "";
 
-    let bufferNDJSON = "";
-    let fullText = "";
+  const assistantMsg = document.createElement("div");
+  assistantMsg.className = "message assistant";
+  assistantMsg.innerHTML = "Assistente: ";
+  chat.appendChild(assistantMsg);
 
-    const assistantMsg = document.createElement("div");
-    assistantMsg.className = "message assistant";
-    chat.appendChild(assistantMsg);
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
 
-    // Loop streaming
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
+    bufferNDJSON += decoder.decode(value, { stream: true });
+    const lines = bufferNDJSON.split("\n");
+    bufferNDJSON = lines.pop();
 
-      bufferNDJSON += decoder.decode(value, { stream: true });
-
-      const lines = bufferNDJSON.split("\n");
-      bufferNDJSON = lines.pop();
-
-      for (let line of lines) {
-        if (!line.trim()) continue;
-        try {
-          const json = JSON.parse(line);
-          if (json.type === "item" && json.content) {
-            fullText += json.content;
-            assistantMsg.innerHTML = linkify(fullText);
-            scrollToBottom();
-          }
-        } catch {
-          // chunk non JSON
-        }
-      }
-    }
-
-    // Elabora ultimo chunk
-    if (bufferNDJSON.trim()) {
+    for (let line of lines) {
+      if (!line.trim()) continue;
       try {
-        const json = JSON.parse(bufferNDJSON);
+        const json = JSON.parse(line);
         if (json.type === "item" && json.content) {
           fullText += json.content;
+          assistantMsg.innerHTML = "Assistente: " + linkify(fullText);
+          chat.scrollTop = chat.scrollHeight;
         }
       } catch {}
     }
+  }
 
-    // Render finale con markdown
-    if (fullText) {
-      let html = marked.parse(fullText);
-      html = linkify(html);
-      assistantMsg.innerHTML = html;
-      scrollToBottom();
-    }
-
-  } catch (error) {
-    removeTypingIndicator();
-    addMessage("error", "Non sono riuscito a rispondere. Riprova tra poco.");
-  } finally {
-    isSending = false;
-    sendBtn.disabled = false;
-    
-    input.focus();
+  if (bufferNDJSON.trim()) {
+    try {
+      const json = JSON.parse(bufferNDJSON);
+      if (json.type === "item" && json.content) {
+        fullText += json.content;
+        let html = marked.parse(fullText);
+        html = linkify(html);
+        assistantMsg.innerHTML = "Assistente: " + html;
+      }
+    } catch {}
   }
 }
 
-// Event listeners
+// ⚡ Event listeners
 sendBtn.addEventListener("click", sendMessage);
-
-// Shift+Enter = nuova riga, Enter = invia
-input.addEventListener("keydown", e => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-});
-
-// Auto-resize textarea
-input.addEventListener("input", autoResize);
-
-// Nuova chat
-document.getElementById("new-chat").addEventListener("click", () => {
-  location.reload();
-});
-
-// Inizializzazione
-showWelcome();
-input.focus();
+input.addEventListener("keypress", e => e.key === "Enter" && sendMessage());
