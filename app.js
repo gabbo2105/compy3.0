@@ -3,8 +3,10 @@ const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
 
 let isSending = false;
-let threadId = null; // Verrà impostato dal webhook
+let threadId = 'session_' + Date.now();
 let chatId = null;
+
+console.log("Start Here");
 // Escape per sicurezza
 function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => ({
@@ -126,7 +128,7 @@ function showInitError() {
   input.placeholder = "Chat non disponibile";
 }
 
-// Inizializza threadId dal webhook
+// Inizializza chatId
 async function initChat() {
   try {
     const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/ab1fa3f9-7c06-4fa2-9a03-1c2c4bf96e67", {
@@ -157,9 +159,10 @@ async function initChat() {
 async function sendMessage() {
   const message = input.value.trim();
   if (!message || isSending || !threadId) return;
-if (!chatId){
-  chatId=await initChat()
-}
+
+  if (!chatId){
+    await initChat();
+  }
   isSending = true;
   sendBtn.disabled = true;
 
