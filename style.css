@@ -11,6 +11,15 @@ body, html {
   height: 100%;
   font-family: 'Inter', sans-serif;
   background: #f0f0f3;
+  overflow: hidden;
+}
+
+/* Supporto per widget popup */
+@media (max-width: 450px), (max-height: 650px) {
+  body, html {
+    height: auto;
+    min-height: 100%;
+  }
 }
 
 /* ── CONTENITORE WIDGET ── */
@@ -18,7 +27,17 @@ body, html {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  min-height: 400px;
   background: #fafafa;
+  position: relative;
+}
+
+/* Supporto per widget popup */
+@media (max-width: 450px), (max-height: 650px) {
+  .chat-container {
+    height: 100%;
+    min-height: 100%;
+  }
 }
 
 /* ── HEADER ── */
@@ -423,6 +442,187 @@ body, html {
 
 .chat-messages::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.18);
+}
+
+/* ── OTTIMIZZAZIONI PER WIDGET POPUP ── */
+@media (max-width: 450px) {
+  /* Header compatto */
+  .chat-header {
+    padding: 8px 16px;
+  }
+
+  .header-logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .chat-title {
+    font-size: 14px;
+  }
+
+  .chat-subtitle {
+    font-size: 10px;
+  }
+
+  /* Area messaggi con padding ridotto */
+  .chat-messages {
+    padding: 12px 16px;
+    gap: 10px;
+  }
+
+  /* Welcome screen compatta */
+  .welcome-screen {
+    padding: 20px 16px;
+  }
+
+  .welcome-logo {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 12px;
+  }
+
+  .welcome-title {
+    font-size: 16px;
+  }
+
+  .welcome-subtitle {
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+
+  .welcome-suggestions {
+    max-width: 100%;
+  }
+
+  .suggestion-chip {
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+
+  /* Messaggi più compatti */
+  .message {
+    max-width: 85%;
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .message.assistant {
+    padding-left: 34px;
+  }
+
+  .message.assistant::before {
+    width: 20px;
+    height: 20px;
+    left: 7px;
+    top: 7px;
+  }
+
+  .typing-indicator {
+    padding: 8px 12px 8px 34px;
+  }
+
+  .typing-indicator::before {
+    width: 20px;
+    height: 20px;
+    left: 7px;
+    top: 7px;
+  }
+
+  /* Input area compatta */
+  .chat-input-container {
+    padding: 10px 16px;
+  }
+
+  .chat-input-wrapper {
+    padding: 6px 10px;
+  }
+
+  .chat-input {
+    font-size: 13px;
+    max-height: 100px;
+  }
+}
+
+@media (max-height: 650px) {
+  /* Riduci padding verticale su finestre basse */
+  .chat-messages {
+    padding: 12px 20px;
+    gap: 10px;
+  }
+
+  .welcome-screen {
+    padding: 20px;
+  }
+
+  .chat-input {
+    max-height: 80px;
+  }
+}
+
+/* Widget popup molto piccoli (es. 350x500) */
+@media (max-width: 380px) and (max-height: 550px) {
+  .chat-header {
+    padding: 6px 12px;
+  }
+
+  .chat-messages {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .message {
+    font-size: 12.5px;
+    padding: 7px 10px;
+  }
+
+  .message.assistant {
+    padding-left: 32px;
+  }
+
+  .message.assistant::before {
+    width: 18px;
+    height: 18px;
+    left: 6px;
+    top: 6px;
+  }
+
+  .typing-indicator {
+    padding: 8px 12px 8px 32px;
+  }
+
+  .typing-indicator::before {
+    width: 18px;
+    height: 18px;
+    left: 6px;
+    top: 6px;
+  }
+
+  .typing-dot {
+    width: 5px;
+    height: 5px;
+  }
+
+  .chat-input-container {
+    padding: 8px 12px;
+  }
+
+  .welcome-logo {
+    width: 40px;
+    height: 40px;
+  }
+
+  .welcome-title {
+    font-size: 15px;
+  }
+
+  .welcome-subtitle {
+    font-size: 11px;
+  }
+
+  .message.error {
+    font-size: 11px;
+    max-width: 90%;
+  }
 }
 
 /* ── DARK MODE (automatico da sistema) ── */
