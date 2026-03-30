@@ -13,6 +13,9 @@ const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
 
+// ✅ Compy 3.0 API endpoint — sostituisce il webhook n8n
+const COMPY_API = "/ask";
+
 // ✅ Escape per sicurezza (solo per visualizzazione)
 function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => ({
@@ -31,7 +34,7 @@ function linkify(text) {
       `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`
   );
 
-  // 2. Gestione URL seguiti da una descrizione (es: URL Descrizione Documento) ciao
+  // 2. Gestione URL seguiti da una descrizione
   text = text.replace(
     /(https?:\/\/[^\s]+)\s+([A-ZÀ-üni0-9][^.,;!?]+)/g,
     (match, url, label) =>
@@ -42,7 +45,7 @@ function linkify(text) {
 }
 
 
-// ✅ Invio messaggio + streaming risposta
+// ✅ Invio messaggio a Compy 3.0 API
 async function sendMessage() {
   const message = input.value.trim();
   if (!message) return;
@@ -51,69 +54,46 @@ async function sendMessage() {
   chat.scrollTop = chat.scrollHeight;
   input.value = "";
 
-  // 📡 Chiamata al tuo webhook n8n
-  const response = await fetch("https://innovasemplice.app.n8n.cloud/webhook/d025b111-f4ca-4265-9cf6-6831b48833d0", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ sessionId, message })
-  });
-
-  // 🧠 Streaming reader
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-
-  let bufferNDJSON = "";       // buffer delle righe NDJSON
-  let fullText = "";           // testo completo generato dall'assistente
-
+  // Mostra indicatore di caricamento
   const assistantMsg = document.createElement("div");
   assistantMsg.className = "message assistant";
-  assistantMsg.innerHTML = "Assistente: ";
+  assistantMsg.innerHTML = "Assistente: <em>Sto cercando nella knowledge base...</em>";
   chat.appendChild(assistantMsg);
+  chat.scrollTop = chat.scrollHeight;
 
-  // 🔁 Loop streaming
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
+  try {
+    const response = await fetch(COMPY_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ query: message })
+    });
 
-    bufferNDJSON += decoder.decode(value, { stream: true });
-
-    // separa righe
-    const lines = bufferNDJSON.split("\n");
-    bufferNDJSON = lines.pop(); // salva l'ultima incompleta
-
-    for (let line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const json = JSON.parse(line);
-
-        if (json.type === "item" && json.content) {
-          fullText += json.content;
-          assistantMsg.innerHTML = "Assistente: " + linkify(fullText);
-          chat.scrollTop = chat.scrollHeight;
-        }
-      } catch {
-        // chunk non JSON — ignoro
-      }
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || `Errore ${response.status}`);
     }
+
+    const data = await response.json();
+
+    // Renderizza la risposta con markdown
+    let html = marked.parse(data.answer);
+    html = linkify(html);
+    assistantMsg.innerHTML = "Assistente: " + html;
+
+  } catch (error) {
+    assistantMsg.innerHTML = "Assistente: <em>Errore: " + escapeHtml(error.message) + "</em>";
   }
 
-  // Elabora l'ultimo chunk se contiene testo
-  if (bufferNDJSON.trim()) {
-    try {
-      const json = JSON.parse(bufferNDJSON);
-      if (json.type === "item" && json.content) {
-        fullText += json.content;
-        let html = marked.parse(fullText);   // markdown → HTML
-        html = linkify(html);                // aggiunge link a URL nudi
-        assistantMsg.innerHTML = "Assistente: " + html;
-
-      }
-    } catch {}
-  }
+  chat.scrollTop = chat.scrollHeight;
 }
 
 // ⚡ Event listeners
 sendBtn.addEventListener("click", sendMessage);
-input.addEventListener("keypress", e => e.key === "Enter" && sendMessage());
+input.addEventListener("keypress", e => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
