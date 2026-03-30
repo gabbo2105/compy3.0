@@ -13,60 +13,57 @@ const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
 
-// ✅ Compy 3.0 API endpoint — sostituisce il webhook n8n
-const COMPY_API = "/ask";
+// ✅ Compy 3.0 API endpoint con streaming
+const COMPY_API = "/ask/stream";
 
-// ✅ Escape per sicurezza (solo per visualizzazione)
+// ✅ Escape per sicurezza
 function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[m]));
 }
 
-// ✅ Trasforma solo i link in <a>, senza toccare il resto
+// ✅ Trasforma link in <a>
 function linkify(text) {
   if (!text) return text;
-
-  // 1. Gestione Markdown [descrizione](url)
   text = text.replace(
     /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
     (match, label, url) =>
       `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`
   );
-
-  // 2. Gestione URL seguiti da una descrizione
   text = text.replace(
     /(https?:\/\/[^\s]+)\s+([A-ZÀ-üni0-9][^.,;!?]+)/g,
     (match, url, label) =>
       `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label.trim())}</a>`
   );
-
   return text;
 }
 
-
-// ✅ Invio messaggio a Compy 3.0 API
+// ✅ Invio messaggio con streaming SSE
 async function sendMessage() {
   const message = input.value.trim();
   if (!message) return;
+
+  // Disabilita input durante la risposta
+  sendBtn.disabled = true;
+  input.disabled = true;
 
   chat.innerHTML += `<div class="message user">Tu: ${escapeHtml(message)}</div>`;
   chat.scrollTop = chat.scrollHeight;
   input.value = "";
 
-  // Mostra indicatore di caricamento
   const assistantMsg = document.createElement("div");
   assistantMsg.className = "message assistant";
-  assistantMsg.innerHTML = "Assistente: <em>Sto cercando nella knowledge base...</em>";
+  assistantMsg.innerHTML = "Assistente: <em>Ricerca nella knowledge base...</em>";
   chat.appendChild(assistantMsg);
   chat.scrollTop = chat.scrollHeight;
+
+  let fullText = "";
 
   try {
     const response = await fetch(COMPY_API, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query: message })
     });
 
@@ -75,17 +72,61 @@ async function sendMessage() {
       throw new Error(err.detail || `Errore ${response.status}`);
     }
 
-    const data = await response.json();
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
 
-    // Renderizza la risposta con markdown
-    let html = marked.parse(data.answer);
-    html = linkify(html);
-    assistantMsg.innerHTML = "Assistente: " + html;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6);
+        if (!jsonStr.trim()) continue;
+
+        try {
+          const event = JSON.parse(jsonStr);
+
+          if (event.type === "status") {
+            assistantMsg.innerHTML = "Assistente: <em>" + escapeHtml(event.message) + "</em>";
+          } else if (event.type === "token") {
+            if (!fullText) {
+              // Primo token — cancella il messaggio di status
+              assistantMsg.innerHTML = "Assistente: ";
+            }
+            fullText += event.content;
+            // Rendering progressivo con markdown
+            let html = marked.parse(fullText);
+            html = linkify(html);
+            assistantMsg.innerHTML = "Assistente: " + html;
+          } else if (event.type === "done") {
+            if (event.answer) {
+              let html = marked.parse(event.answer);
+              html = linkify(html);
+              assistantMsg.innerHTML = "Assistente: " + html;
+            }
+          } else if (event.type === "error") {
+            assistantMsg.innerHTML = "Assistente: <em>Errore: " + escapeHtml(event.error) + "</em>";
+          }
+
+          chat.scrollTop = chat.scrollHeight;
+        } catch {}
+      }
+    }
 
   } catch (error) {
     assistantMsg.innerHTML = "Assistente: <em>Errore: " + escapeHtml(error.message) + "</em>";
   }
 
+  // Riabilita input
+  sendBtn.disabled = false;
+  input.disabled = false;
+  input.focus();
   chat.scrollTop = chat.scrollHeight;
 }
 
